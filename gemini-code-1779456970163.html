@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 연동 가계부 계산기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            padding: 40px 20px;
+            gap: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* [1] 계산기 스타일 */
+        .calculator {
+            background-color: #22252d;
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            width: 340px;
+            height: 540px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .display {
+            width: 100%;
+            height: 90px;
+            background-color: transparent;
+            border: none;
+            color: #ffffff;
+            text-align: right;
+            padding: 10px;
+            font-size: 2.3rem;
+            outline: none;
+            pointer-events: none;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            padding: 18px;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #292d36;
+            color: #ffffff;
+        }
+
+        button:active { transform: scale(0.95); }
+        button.operator { color: #eb6666; }
+        button.equal { background-color: #eb6666; color: white; border-radius: 40px; }
+        button.clear { color: #26ffd8; }
+
+        /* 가계부 전송 특수 버튼 */
+        button.send-btn {
+            background-color: #26ffd8;
+            color: #22252d;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            grid-column: span 2;
+        }
+
+        /* [2] 가계부 메모장 스타일 */
+        .ledger-container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 380px;
+            height: 540px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ledger-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .ledger-header h2 {
+            font-size: 1.3rem;
+            color: #22252d;
+        }
+
+        .date-picker {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .ledger-memo {
+            flex: 1;
+            width: 100%;
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid #e0e0e0;
+            background-color: #f9f9f9;
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .save-btn {
+            background-color: #22252d;
+            color: #ffffff;
+            padding: 14px;
+            border-radius: 15px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .save-btn:hover { background-color: #3b404e; }
+
+        /* [3] 통계 대시보드 스타일 */
+        .dashboard-container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .dashboard-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1rem;
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background-color: #22252d;
+            color: #fff;
+        }
+
+        .stats-list {
+            max-height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #22252d;
+            font-size: 0.95rem;
+        }
+
+        .stats-date { font-weight: bold; color: #555; }
+        .stats-content { color: #333; text-align: right; white-space: pre-line; }
+        .no-data { text-align: center; color: #aaa; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>📊 스마트 가계부 계산기</h1>
+
+    <div class="main-container">
+        <div class="calculator">
+            <input type="text" class="display" id="result" readonly value="0">
+            <div class="buttons">
+                <button class="clear" onclick="clearDisplay()">C</button>
+                <button class="operator" onclick="appendValue('%')">%</button>
+                <button class="operator" onclick="backspace()">⌫</button>
+                <button class="operator" onclick="appendValue('/')">÷</button>
+
+                <button onclick="appendValue('7')">7</button>
+                <button onclick="appendValue('8')">8</button>
+                <button onclick="appendValue('9')">9</button>
+                <button class="operator" onclick="appendValue('*')">×</button>
+
+                <button onclick="appendValue('4')">4</button>
+                <button onclick="appendValue('5')">5</button>
+                <button onclick="appendValue('6')">6</button>
+                <button class="operator" onclick="appendValue('-')">-</button>
+
+                <button onclick="appendValue('1')">1</button>
+                <button onclick="appendValue('2')">2</button>
+                <button onclick="appendValue('3')">3</button>
+                <button class="operator" onclick="appendValue('+')">+</button>
+
+                <button onclick="appendValue('0')">0</button>
+                <button onclick="appendValue('.')">.</button>
+                <button class="send-btn" onclick="sendToLedger()">가계부 전송 ➡️</button>
+                <button class="equal" style="grid-column: span 4;" onclick="calculate()">=</button>
+            </div>
+        </div>
+
+        <div class="ledger-container">
+            <div class="ledger-header">
+                <h2>일일 메모장 ✍️</h2>
+                <input type="date" id="ledger-date" class="date-picker" onchange="loadMemo()">
+            </div>
+            
+            <textarea id="ledger-text" class="ledger-memo" placeholder="오른쪽 계산기에서 금액을 전송하거나 이곳에 직접 내역을 편집·입력하세요."></textarea>
+            
+            <button class="save-btn" onclick="saveMemo()">이 날짜에 저장/수정하기</button>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <div class="dashboard-tabs">
+            <button class="tab-btn active" id="tab-week" onclick="changeTab('week')">최근 1주일 보기</button>
+            <button class="tab-btn" id="tab-month" onclick="changeTab('month')">이번 달 전체 보기</button>
+        </div>
+        <div class="stats-list" id="stats-list">
+            </div>
+    </div>
+
+    <script>
+        /* --- [계산기 로직] --- */
+        const display = document.getElementById('result');
+
+        function appendValue(value) {
+            if (display.value === '0' && value !== '.') { display.value = value; } 
+            else { display.value += value; }
+        }
+
+        function clearDisplay() { display.value = '0'; }
+
+        function backspace() {
+            if (display.value.length > 1) { display.value = display.value.slice(0, -1); } 
+            else { display.value = '0'; }
+        }
+
+        function calculate() {
+            try {
+                let expression = display.value;
+                expression = expression.replace(/%/g, '/100');
+                const result = eval(expression);
+                display.value = Number(result.toFixed(8)).toString();
+            } catch (error) {
+                display.value = 'Error';
+                setTimeout(clearDisplay, 1500);
+            }
+        }
+
+        // [핵심] 계산기 값을 가계부 메모장으로 자동 전송하는 함수
+        function sendToLedger() {
+            const currentAmount = display.value;
+            if(currentAmount === '0' || currentAmount === 'Error') {
+                alert("전송할 유효한 금액이 없습니다.");
+                return;
+            }
+
+            const ledgerText = document.getElementById('ledger-text');
+            // 기존 내용이 있으면 줄바꿈 후 추가, 없으면 바로 추가
+            if (ledgerText.value.trim() === "") {
+                ledgerText.value = `금액: ${Number(currentAmount).toLocaleString()}원 - `;
+            } else {
+                ledgerText.value += `\n금액: ${Number(currentAmount).toLocaleString()}원 - `;
+            }
+            ledgerText.focus(); // 작성하기 편하게 메모장에 커서 위치
+        }
+
+
+        /* --- [가계부 메모장 & 데이터 로직] --- */
+        const ledgerDate = document.getElementById('ledger-date');
+        const ledgerText = document.getElementById('ledger-text');
+        let currentTab = 'week'; // 현재 탭 상태 ('week' 또는 'month')
+
+        // 페이지 첫 실행 시 오늘 날짜로 기본 세팅 및 데이터 로드
+        window.onload = function() {
+            const today = new Date();
+            ledgerDate.value = formatDate(today);
+            loadMemo();
+        }
+
+        // 날짜 포맷 헬퍼 (YYYY-MM-DD)
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // [불러오기 기능] 선택한 날짜의 메모를 가져옴 (편집 가능 상태)
+        function loadMemo() {
+            const selectedDate = ledgerDate.value;
+            const savedText = localStorage.getItem(`ledger_${selectedDate}`);
+            
+            if (savedText !== null) {
+                ledgerText.value = savedText;
+            } else {
+                ledgerText.value = ''; // 기록이 없는 날짜면 빈 메모장
+            }
+            updateDashboard(); // 날짜나 내용 바뀔 때 대시보드도 최신화
+        }
+
+        // [저장/수정 기능] 현재 메모장 내용을 해당 날짜로 저장
+        function saveMemo() {
+            const selectedDate = ledgerDate.value;
+            if (!selectedDate) {
+                alert("날짜를 선택해 주세요.");
+                return;
+            }
+
+            localStorage.setItem(`ledger_${selectedDate}`, ledgerText.value);
+            alert(`${selectedDate} 가계부가 저장/수정 되었습니다.`);
+            updateDashboard(); // 대시보드 새로고침
+        }
+
+
+        /* --- [통계 대시보드 로직] --- */
+        function changeTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-week').classList.toggle('active', tab === 'week');
+            document.getElementById('tab-month').classList.toggle('active', tab === 'month');
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const statsList = document.getElementById('stats-list');
+            statsList.innerHTML = ''; // 기존 리스트 초기화
+
+            const today = new Date();
+            let dateArray = [];
+
+            if (currentTab === 'week') {
+                // 최근 1주일(7일) 날짜 배열 생성
+                for (let i = 0; i < 7; i++) {
+                    let d = new Date();
+                    d.setDate(today.getDate() - i);
+                    dateArray.push(formatDate(d));
+                }
+            } else if (currentTab === 'month') {
+                // 이번 달 1일부터 오늘까지 날짜 배열 생성
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth();
+                const totalDays = today.getDate(); // 1일부터 오늘까지 표시
+                
+                for (let i = totalDays; i >= 1; i--) {
+                    let d = new Date(currentYear, currentMonth, i);
+                    dateArray.push(formatDate(d));
+                }
+            }
+
+            let hasData = false;
+
+            // 로컬스토리지에서 해당하는 날짜들의 데이터를 뽑아서 화면에 그림
+            dateArray.forEach(dateStr => {
+                const data = localStorage.getItem(`ledger_${dateStr}`);
+                // 데이터가 존재하고 내용이 빈칸이 아닐 때만 리스트에 표기
+                if (data && data.trim() !== "") {
+                    hasData = true;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'stats-item';
+                    item.innerHTML = `
+                        <div class="stats-date">${dateStr}</div>
+                        <div class="stats-content">${escapeHtml(data)}</div>
+                    `;
+                    // 대시보드 항목 클릭 시 해당 날짜로 가계부를 불러오는 편리 기능 추가
+                    item.style.cursor = 'pointer';
+                    item.onclick = function() {
+                        ledgerDate.value = dateStr;
+                        loadMemo();
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    };
+
+                    statsList.appendChild(item);
+                }
+            });
+
+            if (!hasData) {
+                statsList.innerHTML = '<div class="no-data">선택한 기간에 기록된 가계부 내역이 없습니다.</div>';
+            }
+        }
+
+        // HTML 태그 깨짐 방지용 특수문자 이스케이프 함수
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
